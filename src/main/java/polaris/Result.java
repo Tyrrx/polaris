@@ -3,6 +3,7 @@ package polaris;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -31,6 +32,12 @@ public abstract class Result<T> {
 
     public static <TResult> Result<TResult> failure(String message) {
         return new Failure<>(message);
+    }
+
+    public static <TResult> Result<TResult> ofOptional(Optional<TResult> optional, String onNotPresentMessage) {
+        return optional.isPresent()
+            ? success(optional.get())
+            : failure(onNotPresentMessage);
     }
 
     /**
@@ -178,8 +185,8 @@ public abstract class Result<T> {
         return this.bind((value) -> Result.success(mapper.apply(value)));
     }
 
-    public Option<T> toOption() {
-        return this.match(Option::from, failure -> Option.none());
+    public Optional<T> toOptional() {
+        return this.match(Optional::of, failure -> Optional.empty());
     }
 
     public T getValueOrDefault(T defaultValue) {
