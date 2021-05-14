@@ -17,21 +17,17 @@ public final class Failure<T> extends Result<T> {
 		this.message = message;
 	}
 
-	public String getMessage() {
-		return message;
-	}
-
 	public <T1> Failure<T1> convert() {
-		return new Failure<>(this.getMessage());
+		return new Failure<>(message);
 	}
 
 	@Override
 	public void matchVoid(Consumer<T> success, Consumer<String> failure) {
-		failure.accept(this.getMessage());
+		failure.accept(message);
 	}
 
 	@Override
 	public <T1> T1 match(Function<T, T1> success, Function<String, T1> failure) {
-		return failure.apply(this.getMessage());
+		return failure.apply(message);
 	}
 }

@@ -17,17 +17,13 @@ public final class Success<T> extends Result<T> {
 		this.value = value;
 	}
 
-	public T getValue() {
-		return value;
-	}
-
 	@Override
 	public void matchVoid(Consumer<T> success, Consumer<String> failure) {
-		success.accept(this.getValue());
+		success.accept(value);
 	}
 
 	@Override
 	public <T1> T1 match(Function<T, T1> success, Function<String, T1> failure) {
-		return success.apply(this.getValue());
+		return success.apply(value);
 	}
 }

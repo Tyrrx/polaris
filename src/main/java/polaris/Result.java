@@ -49,7 +49,6 @@ public abstract class Result<T> {
      * @param <T>            is the type of the aggregation
      * @return 
      */
-
     public static <T> Result<List<T>> aggregate(Stream<Result<T>> stream, String errorSeparator) {
         StringBuffer stringBuffer = new StringBuffer();
         List<T> results = Result.choose(
