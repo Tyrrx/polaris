@@ -91,8 +91,8 @@ public abstract class Result<T> {
                     }));
     }
 
-    public static <T> Stream<Result<T>> chooseMessages(Stream<Result<T>> stream, Consumer<String> errorHandler) {
-        return choose(stream, errorResult -> errorHandler.accept(errorResult.toFailure().getMessage()));
+    public static <T> Stream<Result<T>> chooseMessages(Stream<Result<T>> stream, Consumer<Failure<T>> errorHandler) {
+        return choose(stream, errorResult -> errorHandler.accept((Failure<T>) errorResult));
     }
 
     public static <T> CompletableFuture<Void> matchVoidAsync(CompletableFuture<Result<T>> future, Consumer<T> success, Consumer<String> failure) {
@@ -154,10 +154,9 @@ public abstract class Result<T> {
      * @return a result that contains the value and state of the binding
      */
     public <T1> Result<T1> bind(Function<T, Result<T1>> binder) {
-        if (this.isSuccess()) {
-            return binder.apply(toSuccess().getValue());
-        }
-        return this.toFailure().convert();
+        return match(
+            binder::apply,
+            Result::failure);
     }
 
     /**
@@ -175,50 +174,21 @@ public abstract class Result<T> {
      * @return an empty Optional on failure and a not empty Optional on success
      */
     public Optional<T> toOptional() {
-        return this.match(Optional::of, failure -> Optional.empty());
+        return match(
+            Optional::of,
+            failure -> Optional.empty());
     }
 
     public T getValueOrDefault(T defaultValue) {
-        if (this.isSuccess()) {
-            return this.toSuccess().getValue();
-        }
-        return defaultValue;
-    }
-
-    public T getValueOrThrow() throws GetValueOrThrowException {
-        if (this.isSuccess()) {
-            return this.toSuccess().getValue();
-        }
-        throw new GetValueOrThrowException(this.toFailure().getMessage());
+        return match(
+            success -> success,
+            failure -> defaultValue);
     }
 
     public String getErrorOrDefault() {
-        if (this.isFailure()) {
-            return this.toFailure().getMessage();
-        }
-        return "";
-    }
-
-    public String getErrorOrThrow() throws GetErrorOrThrowException {
-        if (this.isFailure()) {
-            return this.toFailure().getMessage();
-        }
-        throw new GetErrorOrThrowException("Tried to get error message from a success.");
-    }
-
-    public boolean isSuccess() {
-        return this.isSuccess;
-    }
-
-    public boolean isFailure() {
-        return !this.isSuccess;
-    }
-
-    private Success<T> toSuccess() {
-        return (Success<T>) this;
-    }
-
-    private Failure<T> toFailure() {
-        return (Failure<T>) this;
+        return match(
+            success -> "",
+            failure -> failure
+        );
     }
 }
