@@ -17,10 +17,6 @@ public final class Failure<T> extends Result<T> {
 		this.message = message;
 	}
 
-	public <T1> Failure<T1> convert() {
-		return new Failure<>(message);
-	}
-
 	@Override
 	public void matchVoid(Consumer<T> success, Consumer<String> failure) {
 		failure.accept(message);

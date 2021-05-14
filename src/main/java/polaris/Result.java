@@ -59,7 +59,6 @@ public abstract class Result<T> {
                     .append(failure);
             })
             .map(result -> result.getValueOrDefault(null))
-            .filter(Objects::nonNull)
             .collect(Collectors.toList());
         if (stringBuffer.length() > 0) {
             return Result.failure(stringBuffer.toString().replaceFirst(errorSeparator, ""));
