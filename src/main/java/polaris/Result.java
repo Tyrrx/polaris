@@ -145,12 +145,7 @@ public abstract class Result<T> {
      * @param <T1>    return value type
      * @return T1
      */
-    public <T1> T1 match(Function<T, T1> success, Function<String, T1> failure) {
-        if (this.isSuccess()) {
-            return success.apply(this.toSuccess().getValue());
-        }
-        return failure.apply(this.toFailure().getMessage());
-    }
+    public abstract <T1> T1 match(Function<T, T1> success, Function<String, T1> failure);
 
     /**
      * Binds a result with a possible failure to an existing result if the existing result was successful.

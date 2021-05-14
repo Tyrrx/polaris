@@ -1,6 +1,7 @@
 package polaris;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * @author David Retzlaff
@@ -27,5 +28,10 @@ public final class Failure<T> extends Result<T> {
 	@Override
 	public void matchVoid(Consumer<T> success, Consumer<String> failure) {
 		failure.accept(this.getMessage());
+	}
+
+	@Override
+	public <T1> T1 match(Function<T, T1> success, Function<String, T1> failure) {
+		return failure.apply(this.getMessage());
 	}
 }
