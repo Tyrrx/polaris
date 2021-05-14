@@ -1,5 +1,7 @@
 package polaris;
 
+import java.util.function.Consumer;
+
 /**
  * @author David Retzlaff
  * GitHub: https://github.com/Tyrrx}
@@ -16,5 +18,10 @@ public final class Success<T> extends Result<T> {
 
 	public T getValue() {
 		return value;
+	}
+
+	@Override
+	public void matchVoid(Consumer<T> success, Consumer<String> failure) {
+		success.accept(this.getValue());
 	}
 }

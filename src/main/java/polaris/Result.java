@@ -136,13 +136,7 @@ public abstract class Result<T> {
      * @param success Consumer<T> executed on success
      * @param failure Consumer<T> executed on failure
      */
-    public void matchVoid(Consumer<T> success, Consumer<String> failure) {
-        if (this.isSuccess()) {
-            success.accept(this.toSuccess().getValue());
-        } else {
-            failure.accept(this.toFailure().getMessage());
-        }
-    }
+    public abstract void matchVoid(Consumer<T> success, Consumer<String> failure);
 
     /**
      * Matches a result's state (success, failure) and returns a value of type T1.
