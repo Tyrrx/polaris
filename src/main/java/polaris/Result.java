@@ -133,7 +133,6 @@ public abstract class Result<T> {
 
     /**
      * Matches a result's state (success, failure) without a return value.
-     *
      * @param success Consumer<T> executed on success
      * @param failure Consumer<T> executed on failure
      */
@@ -147,7 +146,6 @@ public abstract class Result<T> {
 
     /**
      * Matches a result's state (success, failure) and returns a value of type T1.
-     *
      * @param success Function<T, T1> executed on success
      * @param failure Function<T, T1> executed on failure
      * @param <T1>    return value type
@@ -162,7 +160,6 @@ public abstract class Result<T> {
 
     /**
      * Binds a result with a possible failure to an existing result if the existing result was successful.
-     *
      * @param binder is a method that returns the result to bind
      * @param <T1>   is the type of the bind transformation
      * @return a result that contains the value and state of the binding
@@ -176,7 +173,6 @@ public abstract class Result<T> {
 
     /**
      * Maps an existing value to a new Polaris.Result<T1> with value type T1.
-     *
      * @param mapper Function<T, T1> transforms value on success
      * @param <T1>   New value type
      * @return Polaris.Result<T1>
@@ -185,6 +181,10 @@ public abstract class Result<T> {
         return this.bind((value) -> Result.success(mapper.apply(value)));
     }
 
+    /**
+     * Transforms a Result of type T to an Optional of type T.
+     * @return an empty Optional on failure and a not empty Optional on success
+     */
     public Optional<T> toOptional() {
         return this.match(Optional::of, failure -> Optional.empty());
     }
