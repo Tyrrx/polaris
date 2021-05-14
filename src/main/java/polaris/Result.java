@@ -54,10 +54,10 @@ public abstract class Result<T> {
         StringBuffer stringBuffer = new StringBuffer();
         List<T> results = Result.choose(
             stream,
-            result -> {
+            failure -> {
                 stringBuffer
                     .append(errorSeparator)
-                    .append(result.toFailure().getMessage());
+                    .append(failure);
             })
             .map(result -> result.getValueOrDefault(null))
             .filter(Objects::nonNull)
@@ -80,19 +80,15 @@ public abstract class Result<T> {
         return Result.aggregate(results.stream(), errorSeparator);
     }
 
-    public static <T> Stream<Result<T>> choose(Stream<Result<T>> stream, Consumer<Result<T>> errorHandler) {
+    public static <T> Stream<Result<T>> choose(Stream<Result<T>> stream, Consumer<String> errorHandler) {
         return stream
             .filter(result ->
                 result.match(
                     success -> true,
                     failure -> {
-                        errorHandler.accept(result);
+                        errorHandler.accept(failure);
                         return false;
                     }));
-    }
-
-    public static <T> Stream<Result<T>> chooseMessages(Stream<Result<T>> stream, Consumer<Failure<T>> errorHandler) {
-        return choose(stream, errorResult -> errorHandler.accept((Failure<T>) errorResult));
     }
 
     public static <T> CompletableFuture<Void> matchVoidAsync(CompletableFuture<Result<T>> future, Consumer<T> success, Consumer<String> failure) {
@@ -127,7 +123,7 @@ public abstract class Result<T> {
         return Result.aggregateAsync(completableFutures, Result.defaultErrorSeparator);
     }
 
-    public static <T> CompletableFuture<Stream<Result<T>>> chooseAsync(Stream<CompletableFuture<Result<T>>> completableFutureStream, Consumer<Result<T>> errorHandler) {
+    public static <T> CompletableFuture<Stream<Result<T>>> chooseAsync(Stream<CompletableFuture<Result<T>>> completableFutureStream, Consumer<String> errorHandler) {
         return CompletableFuture.supplyAsync(() -> Result.choose(completableFutureStream.map(CompletableFuture::join), errorHandler));
     }
 
