@@ -40,6 +40,22 @@ public class ResultTests {
     }
 
     @Test
+    public void test_result_ofNullable_success_creation() {
+        Integer nullable = 42;
+        Result<Integer> res = Result.ofNullable(nullable, "e");
+        assertThat(res)
+            .isInstanceOf(Success.class);
+    }
+
+    @Test
+    public void test_result_ofNullable_failure_creation() {
+        Integer nullable = null;
+        Result<Integer> res = Result.ofNullable(nullable, "e");
+        assertThat(res)
+            .isInstanceOf(Failure.class);
+    }
+
+    @Test
     public void test_result_match_success() {
         Result<Integer> res = Result.success(42);
         assertThat(res)

@@ -19,10 +19,8 @@ public abstract class Result<T> {
 
     private static final String defaultErrorSeparator = ", ";
 
-    private final boolean isSuccess;
+    protected Result() {
 
-    protected Result(boolean isSuccess) {
-        this.isSuccess = isSuccess;
     }
 
     /**
@@ -55,6 +53,19 @@ public abstract class Result<T> {
     public static <TResult> Result<TResult> ofOptional(Optional<TResult> optional, String onNotPresentMessage) {
         return optional.isPresent()
             ? success(optional.get())
+            : failure(onNotPresentMessage);
+    }
+
+    /**
+     * Static initializer that performs a null check
+     * @param nullable is the nullable value that will be wrapped into the result container
+     * @param onNotPresentMessage is the error message which the result will contain of the nullable was null
+     * @param <TResult> is the generic type of the nullable value which also determines the type of the result
+     * @return a Success<TResult> if an nullable value was not null and otherwise a Failure<TResult> containing an error message
+     */
+    public static <TResult> Result<TResult> ofNullable(TResult nullable, String onNotPresentMessage) {
+        return null != nullable
+            ? success(nullable)
             : failure(onNotPresentMessage);
     }
 

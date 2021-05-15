@@ -13,7 +13,7 @@ public final class Success<T> extends Result<T> {
 	private final T value;
 
 	public Success(T value) {
-		super(true);
+		super();
 		this.value = value;
 	}
 

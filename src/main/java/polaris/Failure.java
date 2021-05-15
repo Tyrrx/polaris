@@ -13,7 +13,7 @@ public final class Failure<T> extends Result<T> {
 	private String message;
 
 	public Failure(String message) {
-		super(false);
+		super();
 		this.message = message;
 	}
 
