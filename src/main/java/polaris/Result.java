@@ -21,7 +21,7 @@ public abstract class Result<T> {
 
     private final boolean isSuccess;
 
-    private Result(boolean isSuccess) {
+    protected Result(boolean isSuccess) {
         this.isSuccess = isSuccess;
     }
 
