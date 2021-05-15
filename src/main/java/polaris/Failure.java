@@ -1,5 +1,8 @@
 package polaris;
 
+import java.util.function.Consumer;
+import java.util.function.Function;
+
 /**
  * @author David Retzlaff
  * GitHub: https://github.com/Tyrrx}
@@ -10,15 +13,17 @@ public final class Failure<T> extends Result<T> {
 	private String message;
 
 	public Failure(String message) {
-		super(false);
+		super();
 		this.message = message;
 	}
 
-	public String getMessage() {
-		return message;
+	@Override
+	public void matchVoid(Consumer<T> success, Consumer<String> failure) {
+		failure.accept(message);
 	}
 
-	public <T1> Failure<T1> convert() {
-		return new Failure<>(this.getMessage());
+	@Override
+	public <T1> T1 match(Function<T, T1> success, Function<String, T1> failure) {
+		return failure.apply(message);
 	}
 }

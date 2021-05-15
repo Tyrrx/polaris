@@ -2,7 +2,7 @@ package polaris;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -19,18 +19,133 @@ public abstract class Result<T> {
 
     private static final String defaultErrorSeparator = ", ";
 
-    private final boolean isSuccess;
-
-    public Result(boolean isSuccess) {
-        this.isSuccess = isSuccess;
+    protected Result() {
     }
 
+    /**
+     * Static initializer for a successful result
+     * @param value is the value which the result contains
+     * @param <TResult> is the generic type of the value
+     * @return a result container of type Success<TResult>
+     */
     public static <TResult> Result<TResult> success(TResult value) {
         return new Success<>(value);
     }
 
+    /**
+     * Static initializer for a failure result
+     * @param message is the error message of the result
+     * @param <TResult> is the generic type of the value if it was a success
+     * @return a result container of type Failure<TResult> with an error message
+     */
     public static <TResult> Result<TResult> failure(String message) {
         return new Failure<>(message);
+    }
+
+    /**
+     * Static initializer for a success or failure result depending on the state of the optional
+     * @param optional is the optional value that will be wrapped into the result container
+     * @param onNotPresentMessage is the error message which the result will contain of the optional was empty
+     * @param <TResult> is the generic type of the optional value which also determines the type of the result
+     * @return a Success<TResult> if an optional value was present and otherwise a Failure<TResult> containing an error message
+     */
+    public static <TResult> Result<TResult> ofOptional(Optional<TResult> optional, String onNotPresentMessage) {
+        return optional.isPresent()
+            ? success(optional.get())
+            : failure(onNotPresentMessage);
+    }
+
+    /**
+     * Static initializer that performs a null check
+     * @param nullable is the nullable value that will be wrapped into the result container
+     * @param onNotPresentMessage is the error message which the result will contain of the nullable was null
+     * @param <TResult> is the generic type of the nullable value which also determines the type of the result
+     * @return a Success<TResult> if an nullable value was not null and otherwise a Failure<TResult> containing an error message
+     */
+    public static <TResult> Result<TResult> ofNullable(TResult nullable, String onNotPresentMessage) {
+        return null != nullable
+            ? success(nullable)
+            : failure(onNotPresentMessage);
+    }
+
+    /**
+     * Matches a result's state (success, failure) without a return value.
+     * @param success Consumer<T> executed on success
+     * @param failure Consumer<T> executed on failure
+     */
+    public abstract void matchVoid(Consumer<T> success, Consumer<String> failure);
+
+    /**
+     * Matches a result's state (success, failure) and returns a value of type T1.
+     * @param success Function<T, T1> executed on success
+     * @param failure Function<T, T1> executed on failure
+     * @param <TReturn>    return value type
+     * @return T1
+     */
+    public abstract <TReturn> TReturn match(Function<T, TReturn> success, Function<String, TReturn> failure);
+
+    /**
+     * Binds a result with a possible failure to an existing result if the existing result was successful.
+     * @param binder is a method that returns the result to bind
+     * @param <TReturn>   is the type of the bind transformation
+     * @return a result that contains the value and state of the binding
+     */
+    public <TReturn> Result<TReturn> bind(Function<T, Result<TReturn>> binder) {
+        return match(
+            binder::apply,
+            Result::failure);
+    }
+
+    /**
+     * Maps an existing value to a new Polaris.Result<T1> with value type T1.
+     * @param mapper Function<T, T1> transforms value on success
+     * @param <TReturn>   New value type
+     * @return Polaris.Result<T1>
+     */
+    public <TReturn> Result<TReturn> map(Function<T, TReturn> mapper) {
+        return this.bind((value) -> Result.success(mapper.apply(value)));
+    }
+
+    /**
+     * Transforms a Result of type T to an Optional of type T.
+     * @return an empty Optional on failure and a not empty Optional on success
+     */
+    public Optional<T> toOptional() {
+        return match(
+            Optional::of,
+            failure -> Optional.empty());
+    }
+
+    /**
+     * Checks whether a given result is successful or an error
+     * @return true on success and false on failure
+     */
+    public boolean isSuccess() {
+        return match(
+            success -> true,
+            failure -> false);
+    }
+
+    /**
+     * Obtains the contained value of an successful result or the given default
+     * @param defaultValue the value which will be returned if the result is a failure
+     * @return the value of the result container or the given default
+     */
+    public T getValueOrDefault(T defaultValue) {
+        return match(
+            success -> success,
+            failure -> defaultValue);
+    }
+
+    /**
+     * Obtains the error message if the result is a failure. Otherwise the empty string.
+     * @return the error message or the empty string if the result is a success
+     */
+    public String getErrorOrDefault() {
+        return match(
+            success -> "",
+            failure -> failure
+        );
     }
 
     /**
@@ -39,21 +154,19 @@ public abstract class Result<T> {
      *
      * @param stream         result stream
      * @param errorSeparator separator between error messages
-     * @param <T>            is the type of the aggregation
-     * @return 
+     * @param <TResult>            is the type of the aggregation
+     * @return
      */
-
-    public static <T> Result<List<T>> aggregate(Stream<Result<T>> stream, String errorSeparator) {
+    public static <TResult> Result<List<TResult>> aggregate(Stream<Result<TResult>> stream, String errorSeparator) {
         StringBuffer stringBuffer = new StringBuffer();
-        List<T> results = Result.choose(
+        List<TResult> results = Result.choose(
             stream,
-            result -> {
+            failure -> {
                 stringBuffer
                     .append(errorSeparator)
-                    .append(result.toFailure().getMessage());
+                    .append(failure);
             })
             .map(result -> result.getValueOrDefault(null))
-            .filter(Objects::nonNull)
             .collect(Collectors.toList());
         if (stringBuffer.length() > 0) {
             return Result.failure(stringBuffer.toString().replaceFirst(errorSeparator, ""));
@@ -61,168 +174,62 @@ public abstract class Result<T> {
         return Result.success(results);
     }
 
-    public static <T> Result<List<T>> aggregate(Stream<Result<T>> results) {
+    public static <TResult> Result<List<TResult>> aggregate(Stream<Result<TResult>> results) {
         return Result.aggregate(results, Result.defaultErrorSeparator);
     }
 
-    public static <T> Result<List<T>> aggregate(Collection<Result<T>> results) {
+    public static <TResult> Result<List<TResult>> aggregate(Collection<Result<TResult>> results) {
         return Result.aggregate(results.stream(), Result.defaultErrorSeparator);
     }
 
-    public static <T> Result<List<T>> aggregate(Collection<Result<T>> results, String errorSeparator) {
+    public static <TResult> Result<List<TResult>> aggregate(Collection<Result<TResult>> results, String errorSeparator) {
         return Result.aggregate(results.stream(), errorSeparator);
     }
 
-    public static <T> Stream<Result<T>> choose(Stream<Result<T>> stream, Consumer<Result<T>> errorHandler) {
+    public static <TResult> Stream<Result<TResult>> choose(Stream<Result<TResult>> stream, Consumer<String> errorHandler) {
         return stream
             .filter(result ->
                 result.match(
                     success -> true,
                     failure -> {
-                        errorHandler.accept(result);
+                        errorHandler.accept(failure);
                         return false;
                     }));
     }
 
-    public static <T> Stream<Result<T>> chooseMessages(Stream<Result<T>> stream, Consumer<String> errorHandler) {
-        return choose(stream, errorResult -> errorHandler.accept(errorResult.toFailure().getMessage()));
-    }
-
-    public static <T> CompletableFuture<Void> matchVoidAsync(CompletableFuture<Result<T>> future, Consumer<T> success, Consumer<String> failure) {
+    public static <TResult> CompletableFuture<Void> matchVoidAsync(CompletableFuture<Result<TResult>> future, Consumer<TResult> success, Consumer<String> failure) {
         return future.thenAccept(result -> result.matchVoid(success, failure));
     }
 
-    public static <T, T1> CompletableFuture<T1> matchAsync(CompletableFuture<Result<T>> future, Function<T, T1> success, Function<String, T1> failure) {
+    public static <TResult, TReturn> CompletableFuture<TReturn> matchAsync(CompletableFuture<Result<TResult>> future, Function<TResult, TReturn> success, Function<String, TReturn> failure) {
         return future.thenApply(result -> result.match(success, failure));
     }
 
-    public static <T, T1> CompletableFuture<Result<T1>> bindAsync(CompletableFuture<Result<T>> future, Function<T, Result<T1>> binder) {
+    public static <TResult, TReturn> CompletableFuture<Result<TReturn>> bindAsync(CompletableFuture<Result<TResult>> future, Function<TResult, Result<TReturn>> binder) {
         return future.thenApply(result -> result.bind(binder));
     }
 
-    public static <T, T1> CompletableFuture<Result<T1>> mapAsync(CompletableFuture<Result<T>> future, Function<T, T1> mapper) {
+    public static <TResult, TReturn> CompletableFuture<Result<TReturn>> mapAsync(CompletableFuture<Result<TResult>> future, Function<TResult, TReturn> mapper) {
         return future.thenApply(result -> result.map(mapper));
     }
 
-    public static <T> CompletableFuture<Result<List<T>>> aggregateAsync(Stream<CompletableFuture<Result<T>>> completableFutureStream, String errorSeparator) {
+    public static <TResult> CompletableFuture<Result<List<TResult>>> aggregateAsync(Stream<CompletableFuture<Result<TResult>>> completableFutureStream, String errorSeparator) {
         return CompletableFuture.supplyAsync(() -> Result.aggregate(completableFutureStream.map(CompletableFuture::join), errorSeparator));
     }
 
-    public static <T> CompletableFuture<Result<List<T>>> aggregateAsync(Stream<CompletableFuture<Result<T>>> futureStream) {
+    public static <TResult> CompletableFuture<Result<List<TResult>>> aggregateAsync(Stream<CompletableFuture<Result<TResult>>> futureStream) {
         return Result.aggregateAsync(futureStream, Result.defaultErrorSeparator);
     }
 
-    public static <T> CompletableFuture<Result<List<T>>> aggregateAsync(Collection<CompletableFuture<Result<T>>> completableFutures, String errorSeparator) {
+    public static <TResult> CompletableFuture<Result<List<TResult>>> aggregateAsync(Collection<CompletableFuture<Result<TResult>>> completableFutures, String errorSeparator) {
         return Result.aggregateAsync(completableFutures.stream(), errorSeparator);
     }
 
-    public static <T> CompletableFuture<Result<List<T>>> aggregateAsync(Collection<CompletableFuture<Result<T>>> completableFutures) {
+    public static <TResult> CompletableFuture<Result<List<TResult>>> aggregateAsync(Collection<CompletableFuture<Result<TResult>>> completableFutures) {
         return Result.aggregateAsync(completableFutures, Result.defaultErrorSeparator);
     }
 
-    public static <T> CompletableFuture<Stream<Result<T>>> chooseAsync(Stream<CompletableFuture<Result<T>>> completableFutureStream, Consumer<Result<T>> errorHandler) {
+    public static <TResult> CompletableFuture<Stream<Result<TResult>>> chooseAsync(Stream<CompletableFuture<Result<TResult>>> completableFutureStream, Consumer<String> errorHandler) {
         return CompletableFuture.supplyAsync(() -> Result.choose(completableFutureStream.map(CompletableFuture::join), errorHandler));
-    }
-
-    /**
-     * Matches a result's state (success, failure) without a return value.
-     *
-     * @param success Consumer<T> executed on success
-     * @param failure Consumer<T> executed on failure
-     */
-    public void matchVoid(Consumer<T> success, Consumer<String> failure) {
-        if (this.isSuccess()) {
-            success.accept(this.toSuccess().getValue());
-        } else {
-            failure.accept(this.toFailure().getMessage());
-        }
-    }
-
-    /**
-     * Matches a result's state (success, failure) and returns a value of type T1.
-     *
-     * @param success Function<T, T1> executed on success
-     * @param failure Function<T, T1> executed on failure
-     * @param <T1>    return value type
-     * @return T1
-     */
-    public <T1> T1 match(Function<T, T1> success, Function<String, T1> failure) {
-        if (this.isSuccess()) {
-            return success.apply(this.toSuccess().getValue());
-        }
-        return failure.apply(this.toFailure().getMessage());
-    }
-
-    /**
-     * Binds a result with a possible failure to an existing result if the existing result was successful.
-     *
-     * @param binder is a method that returns the result to bind
-     * @param <T1>   is the type of the bind transformation
-     * @return a result that contains the value and state of the binding
-     */
-    public <T1> Result<T1> bind(Function<T, Result<T1>> binder) {
-        if (this.isSuccess()) {
-            return binder.apply(toSuccess().getValue());
-        }
-        return this.toFailure().convert();
-    }
-
-    /**
-     * Maps an existing value to a new Polaris.Result<T1> with value type T1.
-     *
-     * @param mapper Function<T, T1> transforms value on success
-     * @param <T1>   New value type
-     * @return Polaris.Result<T1>
-     */
-    public <T1> Result<T1> map(Function<T, T1> mapper) {
-        return this.bind((value) -> Result.success(mapper.apply(value)));
-    }
-
-    public Option<T> toOption() {
-        return this.match(Option::from, failure -> Option.none());
-    }
-
-    public T getValueOrDefault(T defaultValue) {
-        if (this.isSuccess()) {
-            return this.toSuccess().getValue();
-        }
-        return defaultValue;
-    }
-
-    public T getValueOrThrow() throws GetValueOrThrowException {
-        if (this.isSuccess()) {
-            return this.toSuccess().getValue();
-        }
-        throw new GetValueOrThrowException(this.toFailure().getMessage());
-    }
-
-    public String getErrorOrDefault() {
-        if (this.isFailure()) {
-            return this.toFailure().getMessage();
-        }
-        return "";
-    }
-
-    public String getErrorOrThrow() throws GetErrorOrThrowException {
-        if (this.isFailure()) {
-            return this.toFailure().getMessage();
-        }
-        throw new GetErrorOrThrowException("Tried to get error message from a success.");
-    }
-
-    public boolean isSuccess() {
-        return this.isSuccess;
-    }
-
-    public boolean isFailure() {
-        return !this.isSuccess;
-    }
-
-    private Success<T> toSuccess() {
-        return (Success<T>) this;
-    }
-
-    private Failure<T> toFailure() {
-        return (Failure<T>) this;
     }
 }
