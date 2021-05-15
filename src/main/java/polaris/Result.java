@@ -25,14 +25,33 @@ public abstract class Result<T> {
         this.isSuccess = isSuccess;
     }
 
+    /**
+     * Static initializer for a successful result
+     * @param value is the value which the result contains
+     * @param <TResult> is the generic type of the value
+     * @return a result container of type Success<TResult>
+     */
     public static <TResult> Result<TResult> success(TResult value) {
         return new Success<>(value);
     }
 
+    /**
+     * Static initializer for a failure result
+     * @param message is the error message of the result
+     * @param <TResult> is the generic type of the value if it was a success
+     * @return a result container of type Failure<TResult> with an error message
+     */
     public static <TResult> Result<TResult> failure(String message) {
         return new Failure<>(message);
     }
 
+    /**
+     * Static initializer for a success or failure result depending on the state of the optional
+     * @param optional is the optional value that will be wrapped into the result container
+     * @param onNotPresentMessage is the error message which the result will contain of the optional was empty
+     * @param <TResult> is the generic type of the optional value which also determines the type of the result
+     * @return a Success<TResult> if an optional value was present and otherwise a Failure<TResult> containing an error message
+     */
     public static <TResult> Result<TResult> ofOptional(Optional<TResult> optional, String onNotPresentMessage) {
         return optional.isPresent()
             ? success(optional.get())
@@ -50,18 +69,18 @@ public abstract class Result<T> {
      * Matches a result's state (success, failure) and returns a value of type T1.
      * @param success Function<T, T1> executed on success
      * @param failure Function<T, T1> executed on failure
-     * @param <T1>    return value type
+     * @param <TReturn>    return value type
      * @return T1
      */
-    public abstract <T1> T1 match(Function<T, T1> success, Function<String, T1> failure);
+    public abstract <TReturn> TReturn match(Function<T, TReturn> success, Function<String, TReturn> failure);
 
     /**
      * Binds a result with a possible failure to an existing result if the existing result was successful.
      * @param binder is a method that returns the result to bind
-     * @param <T1>   is the type of the bind transformation
+     * @param <TReturn>   is the type of the bind transformation
      * @return a result that contains the value and state of the binding
      */
-    public <T1> Result<T1> bind(Function<T, Result<T1>> binder) {
+    public <TReturn> Result<TReturn> bind(Function<T, Result<TReturn>> binder) {
         return match(
             binder::apply,
             Result::failure);
@@ -70,10 +89,10 @@ public abstract class Result<T> {
     /**
      * Maps an existing value to a new Polaris.Result<T1> with value type T1.
      * @param mapper Function<T, T1> transforms value on success
-     * @param <T1>   New value type
+     * @param <TReturn>   New value type
      * @return Polaris.Result<T1>
      */
-    public <T1> Result<T1> map(Function<T, T1> mapper) {
+    public <TReturn> Result<TReturn> map(Function<T, TReturn> mapper) {
         return this.bind((value) -> Result.success(mapper.apply(value)));
     }
 
