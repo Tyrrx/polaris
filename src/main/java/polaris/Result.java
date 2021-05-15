@@ -26,11 +26,11 @@ public abstract class Result<T> {
     }
 
     public static <TResult> Result<TResult> success(TResult value) {
-        return new Success<>(value);
+        return new Success<TResult>(value);
     }
 
     public static <TResult> Result<TResult> failure(String message) {
-        return new Failure<>(message);
+        return new Failure<TResult>(message);
     }
 
     public static <TResult> Result<TResult> ofOptional(Optional<TResult> optional, String onNotPresentMessage) {
