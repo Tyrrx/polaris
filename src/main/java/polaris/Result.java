@@ -26,11 +26,11 @@ public abstract class Result<T> {
     }
 
     public static <TResult> Result<TResult> success(TResult value) {
-        return new Success<TResult>(value);
+        return new Success<>(value);
     }
 
     public static <TResult> Result<TResult> failure(String message) {
-        return new Failure<TResult>(message);
+        return new Failure<>(message);
     }
 
     public static <TResult> Result<TResult> ofOptional(Optional<TResult> optional, String onNotPresentMessage) {
@@ -45,12 +45,12 @@ public abstract class Result<T> {
      *
      * @param stream         result stream
      * @param errorSeparator separator between error messages
-     * @param <T>            is the type of the aggregation
+     * @param <TResult>            is the type of the aggregation
      * @return 
      */
-    public static <T> Result<List<T>> aggregate(Stream<Result<T>> stream, String errorSeparator) {
+    public static <TResult> Result<List<TResult>> aggregate(Stream<Result<TResult>> stream, String errorSeparator) {
         StringBuffer stringBuffer = new StringBuffer();
-        List<T> results = Result.choose(
+        List<TResult> results = Result.choose(
             stream,
             failure -> {
                 stringBuffer
@@ -65,19 +65,19 @@ public abstract class Result<T> {
         return Result.success(results);
     }
 
-    public static <T> Result<List<T>> aggregate(Stream<Result<T>> results) {
+    public static <TResult> Result<List<TResult>> aggregate(Stream<Result<TResult>> results) {
         return Result.aggregate(results, Result.defaultErrorSeparator);
     }
 
-    public static <T> Result<List<T>> aggregate(Collection<Result<T>> results) {
+    public static <TResult> Result<List<TResult>> aggregate(Collection<Result<TResult>> results) {
         return Result.aggregate(results.stream(), Result.defaultErrorSeparator);
     }
 
-    public static <T> Result<List<T>> aggregate(Collection<Result<T>> results, String errorSeparator) {
+    public static <TResult> Result<List<TResult>> aggregate(Collection<Result<TResult>> results, String errorSeparator) {
         return Result.aggregate(results.stream(), errorSeparator);
     }
 
-    public static <T> Stream<Result<T>> choose(Stream<Result<T>> stream, Consumer<String> errorHandler) {
+    public static <TResult> Stream<Result<TResult>> choose(Stream<Result<TResult>> stream, Consumer<String> errorHandler) {
         return stream
             .filter(result ->
                 result.match(
@@ -88,39 +88,39 @@ public abstract class Result<T> {
                     }));
     }
 
-    public static <T> CompletableFuture<Void> matchVoidAsync(CompletableFuture<Result<T>> future, Consumer<T> success, Consumer<String> failure) {
+    public static <TResult> CompletableFuture<Void> matchVoidAsync(CompletableFuture<Result<TResult>> future, Consumer<TResult> success, Consumer<String> failure) {
         return future.thenAccept(result -> result.matchVoid(success, failure));
     }
 
-    public static <T, T1> CompletableFuture<T1> matchAsync(CompletableFuture<Result<T>> future, Function<T, T1> success, Function<String, T1> failure) {
+    public static <TResult, TReturn> CompletableFuture<TReturn> matchAsync(CompletableFuture<Result<TResult>> future, Function<TResult, TReturn> success, Function<String, TReturn> failure) {
         return future.thenApply(result -> result.match(success, failure));
     }
 
-    public static <T, T1> CompletableFuture<Result<T1>> bindAsync(CompletableFuture<Result<T>> future, Function<T, Result<T1>> binder) {
+    public static <TResult, TReturn> CompletableFuture<Result<TReturn>> bindAsync(CompletableFuture<Result<TResult>> future, Function<TResult, Result<TReturn>> binder) {
         return future.thenApply(result -> result.bind(binder));
     }
 
-    public static <T, T1> CompletableFuture<Result<T1>> mapAsync(CompletableFuture<Result<T>> future, Function<T, T1> mapper) {
+    public static <TResult, TReturn> CompletableFuture<Result<TReturn>> mapAsync(CompletableFuture<Result<TResult>> future, Function<TResult, TReturn> mapper) {
         return future.thenApply(result -> result.map(mapper));
     }
 
-    public static <T> CompletableFuture<Result<List<T>>> aggregateAsync(Stream<CompletableFuture<Result<T>>> completableFutureStream, String errorSeparator) {
+    public static <TResult> CompletableFuture<Result<List<TResult>>> aggregateAsync(Stream<CompletableFuture<Result<TResult>>> completableFutureStream, String errorSeparator) {
         return CompletableFuture.supplyAsync(() -> Result.aggregate(completableFutureStream.map(CompletableFuture::join), errorSeparator));
     }
 
-    public static <T> CompletableFuture<Result<List<T>>> aggregateAsync(Stream<CompletableFuture<Result<T>>> futureStream) {
+    public static <TResult> CompletableFuture<Result<List<TResult>>> aggregateAsync(Stream<CompletableFuture<Result<TResult>>> futureStream) {
         return Result.aggregateAsync(futureStream, Result.defaultErrorSeparator);
     }
 
-    public static <T> CompletableFuture<Result<List<T>>> aggregateAsync(Collection<CompletableFuture<Result<T>>> completableFutures, String errorSeparator) {
+    public static <TResult> CompletableFuture<Result<List<TResult>>> aggregateAsync(Collection<CompletableFuture<Result<TResult>>> completableFutures, String errorSeparator) {
         return Result.aggregateAsync(completableFutures.stream(), errorSeparator);
     }
 
-    public static <T> CompletableFuture<Result<List<T>>> aggregateAsync(Collection<CompletableFuture<Result<T>>> completableFutures) {
+    public static <TResult> CompletableFuture<Result<List<TResult>>> aggregateAsync(Collection<CompletableFuture<Result<TResult>>> completableFutures) {
         return Result.aggregateAsync(completableFutures, Result.defaultErrorSeparator);
     }
 
-    public static <T> CompletableFuture<Stream<Result<T>>> chooseAsync(Stream<CompletableFuture<Result<T>>> completableFutureStream, Consumer<String> errorHandler) {
+    public static <TResult> CompletableFuture<Stream<Result<TResult>>> chooseAsync(Stream<CompletableFuture<Result<TResult>>> completableFutureStream, Consumer<String> errorHandler) {
         return CompletableFuture.supplyAsync(() -> Result.choose(completableFutureStream.map(CompletableFuture::join), errorHandler));
     }
 
