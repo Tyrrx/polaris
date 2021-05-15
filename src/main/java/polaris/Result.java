@@ -2,7 +2,6 @@ package polaris;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -27,11 +26,11 @@ public abstract class Result<T> {
     }
 
     public static <TResult> Result<TResult> success(TResult value) {
-        return new Success<>(value);
+        return new Success<TResult>(value);
     }
 
     public static <TResult> Result<TResult> failure(String message) {
-        return new Failure<>(message);
+        return new Failure<TResult>(message);
     }
 
     public static <TResult> Result<TResult> ofOptional(Optional<TResult> optional, String onNotPresentMessage) {
@@ -49,18 +48,16 @@ public abstract class Result<T> {
      * @param <T>            is the type of the aggregation
      * @return 
      */
-
     public static <T> Result<List<T>> aggregate(Stream<Result<T>> stream, String errorSeparator) {
         StringBuffer stringBuffer = new StringBuffer();
         List<T> results = Result.choose(
             stream,
-            result -> {
+            failure -> {
                 stringBuffer
                     .append(errorSeparator)
-                    .append(result.toFailure().getMessage());
+                    .append(failure);
             })
             .map(result -> result.getValueOrDefault(null))
-            .filter(Objects::nonNull)
             .collect(Collectors.toList());
         if (stringBuffer.length() > 0) {
             return Result.failure(stringBuffer.toString().replaceFirst(errorSeparator, ""));
@@ -80,19 +77,15 @@ public abstract class Result<T> {
         return Result.aggregate(results.stream(), errorSeparator);
     }
 
-    public static <T> Stream<Result<T>> choose(Stream<Result<T>> stream, Consumer<Result<T>> errorHandler) {
+    public static <T> Stream<Result<T>> choose(Stream<Result<T>> stream, Consumer<String> errorHandler) {
         return stream
             .filter(result ->
                 result.match(
                     success -> true,
                     failure -> {
-                        errorHandler.accept(result);
+                        errorHandler.accept(failure);
                         return false;
                     }));
-    }
-
-    public static <T> Stream<Result<T>> chooseMessages(Stream<Result<T>> stream, Consumer<String> errorHandler) {
-        return choose(stream, errorResult -> errorHandler.accept(errorResult.toFailure().getMessage()));
     }
 
     public static <T> CompletableFuture<Void> matchVoidAsync(CompletableFuture<Result<T>> future, Consumer<T> success, Consumer<String> failure) {
@@ -127,7 +120,7 @@ public abstract class Result<T> {
         return Result.aggregateAsync(completableFutures, Result.defaultErrorSeparator);
     }
 
-    public static <T> CompletableFuture<Stream<Result<T>>> chooseAsync(Stream<CompletableFuture<Result<T>>> completableFutureStream, Consumer<Result<T>> errorHandler) {
+    public static <T> CompletableFuture<Stream<Result<T>>> chooseAsync(Stream<CompletableFuture<Result<T>>> completableFutureStream, Consumer<String> errorHandler) {
         return CompletableFuture.supplyAsync(() -> Result.choose(completableFutureStream.map(CompletableFuture::join), errorHandler));
     }
 
@@ -136,13 +129,7 @@ public abstract class Result<T> {
      * @param success Consumer<T> executed on success
      * @param failure Consumer<T> executed on failure
      */
-    public void matchVoid(Consumer<T> success, Consumer<String> failure) {
-        if (this.isSuccess()) {
-            success.accept(this.toSuccess().getValue());
-        } else {
-            failure.accept(this.toFailure().getMessage());
-        }
-    }
+    public abstract void matchVoid(Consumer<T> success, Consumer<String> failure);
 
     /**
      * Matches a result's state (success, failure) and returns a value of type T1.
@@ -151,12 +138,7 @@ public abstract class Result<T> {
      * @param <T1>    return value type
      * @return T1
      */
-    public <T1> T1 match(Function<T, T1> success, Function<String, T1> failure) {
-        if (this.isSuccess()) {
-            return success.apply(this.toSuccess().getValue());
-        }
-        return failure.apply(this.toFailure().getMessage());
-    }
+    public abstract <T1> T1 match(Function<T, T1> success, Function<String, T1> failure);
 
     /**
      * Binds a result with a possible failure to an existing result if the existing result was successful.
@@ -165,10 +147,9 @@ public abstract class Result<T> {
      * @return a result that contains the value and state of the binding
      */
     public <T1> Result<T1> bind(Function<T, Result<T1>> binder) {
-        if (this.isSuccess()) {
-            return binder.apply(toSuccess().getValue());
-        }
-        return this.toFailure().convert();
+        return match(
+            binder::apply,
+            Result::failure);
     }
 
     /**
@@ -186,50 +167,21 @@ public abstract class Result<T> {
      * @return an empty Optional on failure and a not empty Optional on success
      */
     public Optional<T> toOptional() {
-        return this.match(Optional::of, failure -> Optional.empty());
+        return match(
+            Optional::of,
+            failure -> Optional.empty());
     }
 
     public T getValueOrDefault(T defaultValue) {
-        if (this.isSuccess()) {
-            return this.toSuccess().getValue();
-        }
-        return defaultValue;
-    }
-
-    public T getValueOrThrow() throws GetValueOrThrowException {
-        if (this.isSuccess()) {
-            return this.toSuccess().getValue();
-        }
-        throw new GetValueOrThrowException(this.toFailure().getMessage());
+        return match(
+            success -> success,
+            failure -> defaultValue);
     }
 
     public String getErrorOrDefault() {
-        if (this.isFailure()) {
-            return this.toFailure().getMessage();
-        }
-        return "";
-    }
-
-    public String getErrorOrThrow() throws GetErrorOrThrowException {
-        if (this.isFailure()) {
-            return this.toFailure().getMessage();
-        }
-        throw new GetErrorOrThrowException("Tried to get error message from a success.");
-    }
-
-    public boolean isSuccess() {
-        return this.isSuccess;
-    }
-
-    public boolean isFailure() {
-        return !this.isSuccess;
-    }
-
-    private Success<T> toSuccess() {
-        return (Success<T>) this;
-    }
-
-    private Failure<T> toFailure() {
-        return (Failure<T>) this;
+        return match(
+            success -> "",
+            failure -> failure
+        );
     }
 }
