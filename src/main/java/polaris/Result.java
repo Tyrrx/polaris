@@ -20,7 +20,6 @@ public abstract class Result<T> {
     private static final String defaultErrorSeparator = ", ";
 
     protected Result() {
-
     }
 
     /**
@@ -117,12 +116,31 @@ public abstract class Result<T> {
             failure -> Optional.empty());
     }
 
+    /**
+     * Checks whether a given result is successful or an error
+     * @return true on success and false on failure
+     */
+    public boolean isSuccess() {
+        return match(
+            success -> true,
+            failure -> false);
+    }
+
+    /**
+     * Obtains the contained value of an successful result or the given default
+     * @param defaultValue the value which will be returned if the result is a failure
+     * @return the value of the result container or the given default
+     */
     public T getValueOrDefault(T defaultValue) {
         return match(
             success -> success,
             failure -> defaultValue);
     }
 
+    /**
+     * Obtains the error message if the result is a failure. Otherwise the empty string.
+     * @return the error message or the empty string if the result is a success
+     */
     public String getErrorOrDefault() {
         return match(
             success -> "",
