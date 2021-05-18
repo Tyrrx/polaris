@@ -1,8 +1,9 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
 }
 
-group 'tyrrx'
+group 'com.github.tyrrx'
 version '1.0-SNAPSHOT'
 
 repositories {
